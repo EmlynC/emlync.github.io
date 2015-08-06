@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+	<channel>
+		<title></title>
+		<description></description>
+		<link>http://blog.emlynclay.co.uk</link>
+		<atom:link href="http://blog.emlynclay.co.uk/feed.xml" rel="self" type="application/rss+xml" />
+		
+			<item>
+				<title>Installing Alfresco to Ubuntu 14.04 by hand</title>
+				<description>&lt;p&gt;I’ve recently been tasked with working on a web application that
+connects to &lt;a href=&quot;https://www.alfresco.com/&quot;&gt;Alfresco 5.0.d&lt;/a&gt;. For that I
+wanted to install Alfresco 5.0.d on a local Virtualbox VM that I could
+SSH into and work and build against. This is my guide to do just
+that. I’m doing this on Mac OSX 10.10, the instructions will probably
+work for Linux also.&lt;/p&gt;
+
+&lt;p&gt;I’ve taken inspiration from the
+&lt;a href=&quot;https://github.com/loftuxab/alfresco-ubuntu-install&quot;&gt;install script created by Loftux&lt;/a&gt;
+and the ansible script created by
+&lt;a href=&quot;https://github.com/libersoft/ansible-alfresco&quot;&gt;libersoft&lt;/a&gt;. Thanks
+chaps for putting those repos together!&lt;/p&gt;
+
+&lt;p&gt;Note, you can use the installation wizards from
+&lt;a href=&quot;http://docs.alfresco.com/community/concepts/simpleinstalls-community-intro.html&quot;&gt;Alfresco&lt;/a&gt;,
+but who the heck is a fan of a massive bin file!? It ends up
+installing packages outside of the apt-get package manager meaning
+you’ll manually need to patch all the dependencies should a security
+flaw arise rather than relying on the exceptional work of Ubuntu and
+Debian upstream. Capice?&lt;/p&gt;
+
+&lt;h2 id=&quot;base-requirements&quot;&gt;Base requirements&lt;/h2&gt;
+
+&lt;p&gt;Download and install:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.virtualbox.org/wiki/Downloads&quot;&gt;VirtualBox&lt;/a&gt; - this
+creates and runs the Ubuntu virtual machine&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.vagrantup.com/downloads.html&quot;&gt;Vagrant&lt;/a&gt; - this makes it
+easier to setup a virtual machine&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;installing-alfresco&quot;&gt;Installing Alfresco&lt;/h2&gt;
+
+&lt;p&gt;Create a working folder in your home directory, create the
+virtualmachine, ssh in:&lt;/p&gt;
+
+&lt;h3 id=&quot;create-a-ubuntu-1404-vm&quot;&gt;Create a Ubuntu 14.04 VM&lt;/h3&gt;
+
+&lt;p&gt;I’ve created a small a github repo that contains a vagrantfile to
+setup a virtualbox based on Ubuntu 14.04 with recommended settings
+from Alfresco&lt;/p&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;git clone git@github.com:EmlynC/alfresco5-ubuntu-trusty.git
+&lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;alfresco5-ubuntu-trusty
+vagrant up
+vagrant ssh&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;That’ll take a little while to download and setup. Update the packages
+and upgrade them, makes for a good starting point.&lt;/p&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;sudo apt-get update &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; sudo apt-get upgrade&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;install-oracle-java&quot;&gt;Install Oracle Java&lt;/h3&gt;
+
+&lt;p&gt;Next, add the
+&lt;a href=&quot;http://www.webupd8.org/2012/09/install-oracle-java-8-in-ubuntu-via-ppa.html&quot;&gt;webupd8team&lt;/a&gt;
+oracle java repository so that it’s easier to install the latest
+Oracle Java and stay up to date. I plan to use Oracle Java as this is
+recommended by Alfresco.&lt;/p&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;sudo add-apt-repository ppa:webupd8team/java
+sudo apt-get update&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Install Oracle Java first then set the environment variable JAVA_HOME
+for your user (probably &lt;code&gt;vagrant&lt;/code&gt;) &lt;em&gt;and&lt;/em&gt; root since when you restart
+services etc you’ll need to use &lt;code&gt;sudo&lt;/code&gt; which will look for JAVA_HOME
+in root’s environment variables. The best method? Set it for all users
+in &lt;code&gt;/etc/environment&lt;/code&gt;. However, Tomcat
+&lt;a href=&quot;http://askubuntu.com/questions/154953/specify-jdk-for-tomcat7&quot;&gt;won’t actually use your JAVA_HOME variable&lt;/a&gt;
+so we symlink the java-8-oracle to default-java.&lt;/p&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;sudo apt-get -y install oracle-java8-installer oracle-java8-set-default
+sudo update-java-alternatives -s java-8-oracle
+sudo &lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;JAVA_HOME=/usr/lib/jvm/java-8-oracle&amp;quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; sudo tee -a /etc/environment
+sudo ln -s /usr/lib/jvm/java-8-oracle /usr/lib/jvm/default-java&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;install-alfresco-dependencies&quot;&gt;Install Alfresco dependencies&lt;/h3&gt;
+
+&lt;p&gt;Alfresco has a few of dependencies, here is what they do:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Apache Tomcat - a JSP servlet web server, it takes HTTP requests from browser and serves back the application&lt;/li&gt;
+  &lt;li&gt;PostgreSQL - a relational database, it stores your alfresco data&lt;/li&gt;
+  &lt;li&gt;Postressql JDBC - a java database driver to access PostgreSQL&lt;/li&gt;
+  &lt;li&gt;ImageMagick - a swiss-army knife that converts and manipulates images&lt;/li&gt;
+  &lt;li&gt;Libreoffice - for converting between MS Office ans OASIS document formats&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;.. in addition, we install &lt;code&gt;unzip&lt;/code&gt; so we can unzip the alfresco
+community package. Not in Ubuntu by default. We install the
+dependencies with the &lt;code&gt;-y&lt;/code&gt; switch to answer ‘yes’ to all the questions
+that apt-get throws up at you.&lt;/p&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;sudo apt-get -y install tomcat7 postgresql libpostgresql-jdbc-java imagemagick libreoffice unzip&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;get-alfresco-5-and-move-the-web-server-components-into-tomcat&quot;&gt;Get Alfresco 5 and move the web-server components into Tomcat&lt;/h3&gt;
+
+&lt;p&gt;Get a copy of the Alfresco 5 Community addition, make a home for it
+and unzip to it. I’m a fan of downloading install files to &lt;code&gt;/tmp&lt;/code&gt; to
+prevent polluting the home directory.&lt;/p&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;wget -O /tmp/alfresco-community-5.0.d.zip http://dl.alfresco.com/release/community/5.0.d-build-00002/alfresco-community-5.0.d.zip
+sudo unzip /tmp/alfresco-community-5.0.d.zip&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Next we install the WAR files from the alfresco zip into Tomcat, these
+are basically
+&lt;a href=&quot;https://en.wikipedia.org/wiki/WAR_(file_format)&quot;&gt;JAR files for Web assets in Java lingo&lt;/a&gt;. I’ve
+taken my steps from the
+&lt;a href=&quot;http://docs.alfresco.com/community/tasks/alf-war-install.html&quot;&gt;Alfresco docs&lt;/a&gt;
+so do look there for more information about what the files are and
+what they do. Handily, the files you need are all in the web-server
+directory in &lt;code&gt;/tmp/alfresco-community-5.0.d&lt;/code&gt;, so we copy those across
+and rename &lt;code&gt;/shared/classes/alfresco-global.properties.sample&lt;/code&gt; to
+&lt;code&gt;alfresco-global.properties&lt;/code&gt; to set the global properties for
+Alfresco.&lt;/p&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;sudo cp -R /tmp/alfresco-community-5.0.d/web-server/webapps/* /var/lib/tomcat7/webapps/
+sudo cp -R /tmp/alfresco-community-5.0.d/web-server/shared/* /var/lib/tomcat7/shared/
+sudo mv /var/lib/tomcat7/shared/classes/alfresco-global.properties.sample /var/lib/tomcat7/shared/classes/alfresco-global.properties&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;start-tomcat-and-marvel&quot;&gt;Start Tomcat and marvel!&lt;/h2&gt;
+
+&lt;p&gt;All that’s left to do is restart tomcat and marvel at you lovely work
+&lt;code&gt;http://localhost:9090/share/page/&lt;/code&gt;. Ahhhhh.&lt;/p&gt;
+
+</description>
+				<pubDate>Thu, 06 Aug 2015 14:34:28 +0100</pubDate>
+				<link>http://blog.emlynclay.co.uk/alfresco/ubuntu/install/14.04/lts/2015/08/06/install-alfresco-5.0-to-ubuntu-14.04LTS.html</link>
+				<guid isPermaLink="true">http://blog.emlynclay.co.uk/alfresco/ubuntu/install/14.04/lts/2015/08/06/install-alfresco-5.0-to-ubuntu-14.04LTS.html</guid>
+			</item>
+		
+	</channel>
+</rss>
