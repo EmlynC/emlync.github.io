@@ -1,9 +1,9 @@
 ---
 layout: post
-title:  "Installing Alfresco to Ubuntu 14.04 by hand"
+title:  "Installing Alfresco into Ubuntu 14.04 step-by-step"
 author: emlyn
 date:   2015-08-06 13:34:28
-categories: alfresco ubuntu install 14.04 LTS
+categories: alfresco
 ---
 
 I've recently been tasked with working on a web application that
@@ -16,8 +16,9 @@ work for Linux also.
 I've taken inspiration from the
 [install script created by Loftux](https://github.com/loftuxab/alfresco-ubuntu-install)
 and the ansible script created by
-[libersoft](https://github.com/libersoft/ansible-alfresco). Thanks
-chaps for putting those repos together!
+[libersoft](https://github.com/libersoft/ansible-alfresco). [Francesco Corti did a great job listing all of the steps](http://fcorti.com/2014/10/13/how-to-install-alfresco-5-0-ubuntu-14-04-lts/),
+I've made use of that post in this blog. Thanks chaps for putting
+those repos together!
 
 Note, you can use the installation wizards from
 [Alfresco](http://docs.alfresco.com/community/concepts/simpleinstalls-community-intro.html),
@@ -103,11 +104,42 @@ Alfresco has a few of dependencies, here is what they do:
 .. in addition, we install `unzip` so we can unzip the alfresco
 community package. Not in Ubuntu by default. We install the
 dependencies with the `-y` switch to answer 'yes' to all the questions
-that apt-get throws up at you.
+that apt-get throws up at you. We add mc3man's apt-repository so that
+we can get FFmpeg.
 
 {% highlight bash %}
-sudo apt-get -y install tomcat7 postgresql libpostgresql-jdbc-java imagemagick libreoffice unzip
+sudo add-apt-repository ppa:mc3man/trusty-media
+sudo apt-get -y install tomcat7 postgresql libpostgresql-jdbc-java imagemagick ghostscript libreoffice ffmpeg unzip libjpeg62 libgif4 libart-2.0-2
+wget http://archive.canonical.com/ubuntu/pool/partner/s/swftools/swftools_0.9.0-0ubuntu2_amd64.deb && chmod a+x swftools_0.9.0-0ubuntu2_amd64.deb && sudo dpkg -i swftools_0.9.0-0ubuntu2_amd64.deb
 {% endhighlight %}
+
+### Create a database for Alfresco
+
+We'll be using PostgreSQL for this install. Switch to the postgresql
+user, create a new database that is owned by user called
+alfresco. I've chosen to set the password as 'alfresco' for the user
+alfresco, but do feel free to make up something more secure!
+
+{% highlight bash %}
+sudo su postgres
+psql
+{% endhighlight %}
+
+In the psql prompt enter:
+
+{% highlight sql %}
+CREATE ROLE alfresco WITH PASSWORD 'alfresco' LOGIN;
+CREATE DATABASE alfresco WITH OWNER alfresco;
+\q
+{% endhighlight %}
+
+Change back to the vagrant user
+
+{% highlight bash %}
+su vagrant
+{% endhighlight %}
+
+HINT: the default password for user `vagrant` is `vagrant` also.
 
 ### Get Alfresco 5 and move the web-server components into Tomcat
 
@@ -137,6 +169,8 @@ sudo cp -R /tmp/alfresco-community-5.0.d/web-server/webapps/* /var/lib/tomcat7/w
 sudo cp -R /tmp/alfresco-community-5.0.d/web-server/shared/* /var/lib/tomcat7/shared/
 sudo mv /var/lib/tomcat7/shared/classes/alfresco-global.properties.sample /var/lib/tomcat7/shared/classes/alfresco-global.properties
 {% endhighlight %}
+
+
 
 ## Start Tomcat and marvel!
 
